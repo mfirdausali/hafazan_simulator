@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Quran Memorization Simulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .input-container, .slider-container {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="range"], input[type="date"], select {
+            width: 100%;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+        .slider-value {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .juz-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .juz-item {
+            display: flex;
+            align-items: center;
+        }
+        .juz-item input {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Advanced Quran Memorization Simulator</h1>
+        <form id="quranForm">
+            <div class="input-container">
+                <label for="ageInputMethod">Choose age input method:</label>
+                <select id="ageInputMethod">
+                    <option value="slider">Age Slider</option>
+                    <option value="birthdate">Birth Date</option>
+                </select>
+            </div>
+
+            <div id="ageSliderContainer" class="slider-container">
+                <label for="currentAge">Current Age:</label>
+                <input type="range" id="currentAge" min="1" max="120" value="30">
+                <div id="currentAgeValue" class="slider-value">30</div>
+            </div>
+
+            <div id="birthdateContainer" class="input-container" style="display: none;">
+                <label for="birthdate">Birth Date:</label>
+                <input type="date" id="birthdate">
+            </div>
+            
+            <div class="slider-container">
+                <label for="ayahsPerDay">Ayahs to memorize per day:</label>
+                <input type="range" id="ayahsPerDay" min="1" max="50" value="1">
+                <div id="ayahsPerDayValue" class="slider-value">1</div>
+            </div>
+
+            <h2>Select Memorized Juz</h2>
+            <div id="juzGrid" class="juz-grid"></div>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const TOTAL_AYAHS = 6236;
+        const JUZ_AYAHS = [
+            148, 111, 126, 131, 124, 110, 149, 142, 159, 127,
+            151, 170, 154, 227, 185, 269, 190, 202, 339, 171,
+            178, 169, 357, 175, 246, 195, 399, 137, 431, 564
+        ];
+
+        const ageInputMethod = document.getElementById('ageInputMethod');
+        const ageSliderContainer = document.getElementById('ageSliderContainer');
+        const birthdateContainer = document.getElementById('birthdateContainer');
+        const currentAgeSlider = document.getElementById('currentAge');
+        const birthdate = document.getElementById('birthdate');
+        const ayahsPerDaySlider = document.getElementById('ayahsPerDay');
+        const currentAgeValue = document.getElementById('currentAgeValue');
+        const ayahsPerDayValue = document.getElementById('ayahsPerDayValue');
+        const resultDiv = document.getElementById('result');
+        const juzGrid = document.getElementById('juzGrid');
+
+        // Create juz checkboxes
+        JUZ_AYAHS.forEach((ayahs, index) => {
+            const juzItem = document.createElement('div');
+            juzItem.className = 'juz-item';
+            juzItem.innerHTML = `
+                <input type="checkbox" id="juz${index + 1}" name="juz" value="${index}">
+                <label for="juz${index + 1}">Juz ${index + 1}</label>
+            `;
+            juzGrid.appendChild(juzItem);
+        });
+
+        function updateSliderValue(slider, valueDisplay) {
+            valueDisplay.textContent = slider.value;
+        }
+
+        function calculateAge(birthDate) {
+            const today = new Date();
+            const birth = new Date(birthDate);
+            let years = today.getFullYear() - birth.getFullYear();
+            let months = today.getMonth() - birth.getMonth();
+            let days = today.getDate() - birth.getDate();
+
+            if (months < 0 || (months === 0 && days < 0)) {
+                years--;
+                months += 12;
+            }
+
+            if (days < 0) {
+                const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 0);
+                days += lastMonth.getDate();
+                months--;
+            }
+
+            return { years, months, days };
+        }
+
+        function calculateMemorization() {
+            let currentAge, exactAge;
+            if (ageInputMethod.value === 'slider') {
+                currentAge = parseInt(currentAgeSlider.value);
+                exactAge = { years: currentAge, months: 0, days: 0 };
+            } else {
+                exactAge = calculateAge(birthdate.value);
+                currentAge = exactAge.years;
+            }
+
+            const ayahsPerDay = parseInt(ayahsPerDaySlider.value);
+            
+            const memorizedJuz = Array.from(document.querySelectorAll('input[name="juz"]:checked'))
+                .map(checkbox => parseInt(checkbox.value));
+            
+            const memorizedAyahs = memorizedJuz.reduce((sum, juzIndex) => sum + JUZ_AYAHS[juzIndex], 0);
+            const remainingAyahs = TOTAL_AYAHS - memorizedAyahs;
+            
+            const daysToComplete = Math.ceil(remainingAyahs / ayahsPerDay);
+            const yearsToComplete = daysToComplete / 365;
+            
+            const completionYears = Math.floor(yearsToComplete);
+            const completionMonths = Math.floor((yearsToComplete - completionYears) * 12);
+            const completionDays = Math.round(((yearsToComplete - completionYears) * 365) % 30);
+
+            const ageAtCompletion = {
+                years: currentAge + completionYears,
+                months: exactAge.months + completionMonths,
+                days: exactAge.days + completionDays
+            };
+
+            // Adjust months and years if necessary
+            if (ageAtCompletion.months >= 12) {
+                ageAtCompletion.years += Math.floor(ageAtCompletion.months / 12);
+                ageAtCompletion.months %= 12;
+            }
+            if (ageAtCompletion.days >= 30) {
+                ageAtCompletion.months += Math.floor(ageAtCompletion.days / 30);
+                ageAtCompletion.days %= 30;
+            }
+
+            resultDiv.innerHTML = `
+                <p>Memorized: ${memorizedAyahs} ayahs (${(memorizedAyahs / TOTAL_AYAHS * 100).toFixed(1)}% of the Quran)</p>
+                <p>Remaining: ${remainingAyahs} ayahs</p>
+                <p>At ${ayahsPerDay} ayah(s) per day:</p>
+                <p>You will complete memorization in approximately ${completionYears} years, ${completionMonths} months, and ${completionDays} days.</p>
+                <p>You will be about ${ageAtCompletion.years} years, ${ageAtCompletion.months} months, and ${ageAtCompletion.days} days old when you finish.</p>
+            `;
+        }
+
+        ageInputMethod.addEventListener('change', function() {
+            if (this.value === 'slider') {
+                ageSliderContainer.style.display = 'block';
+                birthdateContainer.style.display = 'none';
+            } else {
+                ageSliderContainer.style.display = 'none';
+                birthdateContainer.style.display = 'block';
+            }
+            calculateMemorization();
+        });
+
+        currentAgeSlider.addEventListener('input', () => {
+            updateSliderValue(currentAgeSlider, currentAgeValue);
+            calculateMemorization();
+        });
+
+        birthdate.addEventListener('change', calculateMemorization);
+
+        ayahsPerDaySlider.addEventListener('input', () => {
+            updateSliderValue(ayahsPerDaySlider, ayahsPerDayValue);
+            calculateMemorization();
+        });
+
+        document.querySelectorAll('input[name="juz"]').forEach(checkbox => {
+            checkbox.addEventListener('change', calculateMemorization);
+        });
+
+        // Set default date to 30 years ago
+        const defaultDate = new Date();
+        defaultDate.setFullYear(defaultDate.getFullYear() - 30);
+        birthdate.value = defaultDate.toISOString().split('T')[0];
+
+        // Initial calculation
+        calculateMemorization();
+    </script>
+</body>
+</html>
